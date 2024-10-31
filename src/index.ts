@@ -31,6 +31,7 @@ app.get('/health', async(req:Request, res:Response)=>{
     res.send({
         message: "health okay!"
     })
+    
 });
 
 app.use('/api/my/user', myUserRoute);

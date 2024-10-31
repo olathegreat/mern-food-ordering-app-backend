@@ -44,7 +44,7 @@ const createMyRestaurant = async (req: Request, res: Response) => {
 
         const imageUrl = await uploadImage(req.file as Express.Multer.File);    
 
-        const restaurant = new Restaurant(req.body);
+        const restaurant = new Restaurant(req.body);    
       
 
         restaurant.imageUrl = imageUrl;
@@ -54,7 +54,8 @@ const createMyRestaurant = async (req: Request, res: Response) => {
         await restaurant.save();
 
 
-        res.status(201).json(restaurant);
+        res.status(201).json({restaurant});
+        
     } catch (err) {
 
         console.log(err);
