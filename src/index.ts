@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import {v2 as cloudinary} from "cloudinary" 
 import MyRestaurantRoutes from "./routes/MyRestaurantRoutes"    
 import myUserRoute from "./routes/MyUserRoutes" 
+import RestaurantRoute from "./routes/RestaurantRoute"  
 
 
 
@@ -31,11 +32,12 @@ app.get('/health', async(req:Request, res:Response)=>{
     res.send({
         message: "health okay!"
     })
-    
-});
 
+});
+   
 app.use('/api/my/user', myUserRoute);
 app.use('/api/my/restaurant', MyRestaurantRoutes);
+app.use('/api/restaurant', RestaurantRoute)
 
 
 app.listen(7000, () => {
