@@ -25,7 +25,8 @@
     "mongodb": "^6.10.0",
     "mongoose": "^8.7.3",
     "multer": "^1.4.5-lts.1",
-    "npx": "^10.2.2"
+    "npx": "^10.2.2",
+    "stripe": "^17.3.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
