@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Restaurant from "../models/restaurant";
 import cloudinary from "cloudinary";
 import mongoose from "mongoose";
+import Order from "../models/Order";
 
 
 const getMyRestaurant = async (req: Request, res: Response) => {   
@@ -108,6 +109,57 @@ const uploadImage = async(file:Express.Multer.File)=>{
     return uploadResponse.url;
 
 }
+
+const getMyRestaurantOrder = async(req:Request, res:Response)=>{
+    try{
+        const restaurant = await Restaurant.findOne({
+            user: req.userId
+        })
+        if(!restaurant){
+            res.status(404).json({ message: "Restaurant not found" })
+            return;
+        }
+        // res.status(200).json({restaurant});
+        const orders = await Order.find({
+            restaurant: restaurant._id  
+        }).populate("restaurant").populate("user"); 
+
+        res.status(200).json(orders);
+    }catch(err){
+        console.log(err)
+        res.status(500).json({ message: "Error fetching restaurant" })
+    }
+}
+
+
+const updateOrderStatus = async(req: Request, res:Response) =>{
+    try{
+         const {orderId} = req.params;
+         const {status} = req.body;
+
+
+         const order = await Order.findById(orderId)
+         if(!order){
+            res.status(404).json({ message: "Order not found" })
+            return;
+         }  
+
+         const restaurant = await Restaurant.findById(order.restaurant) 
+         if(restaurant?.user?._id.toString() !== req.userId){
+            res.status(403).json({ message: "You are not authorized to update this order" })
+            return;
+         }  
+
+
+         order.status = status;
+         await order.save();
+         res.status(200).json(order);   
+        
+    }catch(err){
+        console.log(err)
+        res.status(500).json({ message: "Error updating order status" })    
+    }
+}
 export default {
-  getMyRestaurant,  createMyRestaurant, updateMyRestaurant
+  getMyRestaurant,  createMyRestaurant, updateMyRestaurant, getMyRestaurantOrder  , updateOrderStatus  
 }   

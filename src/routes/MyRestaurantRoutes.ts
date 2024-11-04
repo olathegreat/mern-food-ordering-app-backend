@@ -15,9 +15,11 @@ const upload = multer({
     } 
 });    
 //  /api/my/restaurant/
+router.get('/order', jwtCheck, jwtParse,MyRestaurantController.getMyRestaurantOrder )
 router.get('/', jwtCheck, jwtParse, MyRestaurantController.getMyRestaurant)
 router.post('/', upload.single("imageFile"),validateMyRestaurantRequest,jwtCheck,jwtParse, MyRestaurantController.createMyRestaurant)
 router.put('/', upload.single("imageFile"),validateMyRestaurantRequest,jwtCheck,jwtParse, MyRestaurantController.updateMyRestaurant)    
+router.patch("/order/:orderId/status", jwtCheck, jwtParse, MyRestaurantController.updateOrderStatus)
 
 
 

@@ -25,6 +25,19 @@ type CheckoutSessionRequest = {
 
 
 
+const getMyOrders = async (req: Request, res: Response): Promise<void> => {
+          
+    try {
+      const orders = await Order.find({ user: req.userId }).populate("restaurant").populate("user");
+      
+      res.json(orders)
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
 const stripeWebhookHandler = async (req: Request, res: Response): Promise<void> => {
     let event;
     try {
@@ -57,96 +70,96 @@ const stripeWebhookHandler = async (req: Request, res: Response): Promise<void> 
 
 
 
-    const createCheckoutSession = async (req: Request, res: Response): Promise<void> => {
-        try {
-            const checkOutSessionRequest: CheckoutSessionRequest = req.body;
-            const restaurant = await Restaurant.findById(checkOutSessionRequest.restaurantId);
+const createCheckoutSession = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const checkOutSessionRequest: CheckoutSessionRequest = req.body;
+        const restaurant = await Restaurant.findById(checkOutSessionRequest.restaurantId);
 
-            if (!restaurant) {
-                res.status(404).json({ message: "Restaurant not found" });
-                return;
-            }
-
-            const newOrder = new Order({
-                restaurant: restaurant._id,
-                user: req.userId,
-                deliveryDetails: checkOutSessionRequest.deliveryDetails,
-                cartItems: checkOutSessionRequest.cartItems,
-                // totalAmount: 0,
-                status: "placed",
-                createdAt: new Date(),
-            });
-
-            const lineItems = createLineItems(checkOutSessionRequest, restaurant.menuItems);
-            const session = await createSession(lineItems, newOrder._id.toString(), restaurant.deliveryPrice, restaurant._id.toString());
-
-            if (!session.url) {
-                res.status(500).json({ message: "Error creating Stripe session" });
-                return;
-            }
-
-            await newOrder.save();
-
-            res.json({ url: session.url });
-        } catch (err: any) {
-            console.error(err);
-            res.status(500).json({ message: err?.raw?.message || err.message || "Internal Server Error" });
+        if (!restaurant) {
+            res.status(404).json({ message: "Restaurant not found" });
+            return;
         }
-    };
 
-    const createLineItems = (checkoutSessionRequest: CheckoutSessionRequest, menuItems: MenuItemType[]) => {
-        return checkoutSessionRequest.cartItems.map((cartItem) => {
-            const menuItem = menuItems.find((item) => item._id.toString() === cartItem.menuItemId.toString());
+        const newOrder = new Order({
+            restaurant: restaurant._id,
+            user: req.userId,
+            deliveryDetails: checkOutSessionRequest.deliveryDetails,
+            cartItems: checkOutSessionRequest.cartItems,
+            // totalAmount: 0,
+            status: "placed",
+            createdAt: new Date(),
+        });
 
-            if (!menuItem) {
-                throw new Error(`Menu Item not found: ${cartItem.menuItemId}`);
-            }
+        const lineItems = createLineItems(checkOutSessionRequest, restaurant.menuItems);
+        const session = await createSession(lineItems, newOrder._id.toString(), restaurant.deliveryPrice, restaurant._id.toString());
 
-            return {
-                price_data: {
-                    currency: 'usd',
-                    unit_amount: menuItem.price,
-                    product_data: {
-                        name: menuItem.name,
+        if (!session.url) {
+            res.status(500).json({ message: "Error creating Stripe session" });
+            return;
+        }
+
+        await newOrder.save();
+
+        res.json({ url: session.url });
+    } catch (err: any) {
+        console.error(err);
+        res.status(500).json({ message: err?.raw?.message || err.message || "Internal Server Error" });
+    }
+};
+
+const createLineItems = (checkoutSessionRequest: CheckoutSessionRequest, menuItems: MenuItemType[]) => {
+    return checkoutSessionRequest.cartItems.map((cartItem) => {
+        const menuItem = menuItems.find((item) => item._id.toString() === cartItem.menuItemId.toString());
+
+        if (!menuItem) {
+            throw new Error(`Menu Item not found: ${cartItem.menuItemId}`);
+        }
+
+        return {
+            price_data: {
+                currency: 'usd',
+                unit_amount: menuItem.price,
+                product_data: {
+                    name: menuItem.name,
+                },
+            },
+            quantity: parseInt(cartItem.quantity, 10),
+        };
+    });
+};
+
+const createSession = async (
+    lineItems: Stripe.Checkout.SessionCreateParams.LineItem[],
+    orderId: string,
+    deliveryPrice: number,
+    restaurantId: string
+): Promise<Stripe.Checkout.Session> => {  // specify the return type
+    return await STRIPE.checkout.sessions.create({
+        payment_method_types: ['card'], // specify payment methods explicitly
+        line_items: lineItems,
+        shipping_options: [
+            {
+                shipping_rate_data: {
+                    display_name: "Delivery",
+                    type: "fixed_amount",
+                    fixed_amount: {
+                        amount: deliveryPrice,
+                        currency: "usd",
                     },
                 },
-                quantity: parseInt(cartItem.quantity, 10),
-            };
-        });
-    };
-
-    const createSession = async (
-  lineItems: Stripe.Checkout.SessionCreateParams.LineItem[],
-  orderId: string,
-  deliveryPrice: number,
-  restaurantId: string
-): Promise<Stripe.Checkout.Session> => {  // specify the return type
-  return await STRIPE.checkout.sessions.create({
-    payment_method_types: ['card'], // specify payment methods explicitly
-    line_items: lineItems,
-    shipping_options: [
-      {
-        shipping_rate_data: {
-          display_name: "Delivery",
-          type: "fixed_amount",
-          fixed_amount: {
-            amount: deliveryPrice,
-            currency: "usd",
-          },
+            },
+        ],
+        mode: "payment",
+        metadata: {
+            orderId,
+            restaurantId,
         },
-      },
-    ],
-    mode: "payment",
-    metadata: {
-      orderId,
-      restaurantId,
-    },
-    success_url: `${FRONTEND_URL}/order-status?success=true`,
-    cancel_url: `${FRONTEND_URL}/detail/${restaurantId}?cancelled=true`,
-  });
+        success_url: `${FRONTEND_URL}/order-status?success=true`,
+        cancel_url: `${FRONTEND_URL}/detail/${restaurantId}?cancelled=true`,
+    });
 };
 
 
-    export default {
-        createCheckoutSession, stripeWebhookHandler
-    };
+export default {
+    createCheckoutSession, stripeWebhookHandler, getMyOrders
+};
